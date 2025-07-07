@@ -149,63 +149,71 @@ export async function updateClientInfrastructure(
   infrastructure: Partial<ClientInfrastructure>,
 ): Promise<ClientInfrastructure> {
   try {
+    // 1. Verificar si la columna last_scan existe
+    const { data: columns, error: columnsError } = await supabase
+      .rpc('get_columns_info', { table_name: 'client_infrastructure' });
+    
+    const columnExists = columns?.some((col: any) => col.column_name === 'last_scan');
+
+    // 2. Preparar datos para actualización
+    const now = new Date().toISOString();
+    const updateData: any = {
+      ...infrastructure,
+      updated_at: now
+    };
+
+    // 3. Buscar infraestructura existente
     const { data: existingList, error: fetchError } = await supabase
       .from("client_infrastructure")
       .select("id")
       .eq("client_id", clientId)
-      .limit(1)
+      .limit(1);
 
-    if (fetchError) {
-      console.error("Error checking existing infrastructure:", fetchError)
-      throw fetchError
-    }
+    if (fetchError) throw fetchError;
 
-    const existing = existingList?.[0] || null
+    const existing = existingList?.[0];
 
     if (existing) {
-      const { data, error } = await supabase
-        .from("client_infrastructure")
-        .update({
-          ...infrastructure,
-          updated_at: new Date().toISOString(),
-          last_scan: new Date().toISOString(),
-        })
-        .eq("id", existing.id) // Usamos el ID exacto
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Error updating infrastructure:", error)
-        throw error
+      // Actualización de registro existente
+      if (columnExists && (infrastructure.total_computers !== undefined || 
+          infrastructure.windows_server_version !== undefined)) {
+        updateData.last_scan = now;
       }
 
-      return data
+      const { data, error } = await supabase
+        .from("client_infrastructure")
+        .update(updateData)
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } else {
-      const { data, error } = await supabase
-        .from("client_infrastructure")
-        .insert([
-          {
-            client_id: clientId,
-            ...infrastructure,
-            last_scan: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single()
+      // Creación de nuevo registro
+      const insertData = {
+        ...updateData,
+        client_id: clientId
+      };
 
-      if (error) {
-        console.error("Error creating infrastructure:", error)
-        throw error
+      if (columnExists) {
+        insertData.last_scan = now;
       }
 
-      return data
+      const { data, error } = await supabase
+        .from("client_infrastructure")
+        .insert([insertData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     }
   } catch (error) {
-    console.error("Error in updateClientInfrastructure:", error)
-    throw error
+    console.error("Error in updateClientInfrastructure:", error);
+    throw error;
   }
 }
-
 
 export async function getInfrastructureHistory(clientId: string, limit = 10) {
   try {
@@ -227,3 +235,13 @@ export async function getInfrastructureHistory(clientId: string, limit = 10) {
     throw error
   }
 }
+
+// Función RPC para verificar columnas (debes crearla en Supabase)
+// CREATE OR REPLACE FUNCTION public.get_columns_info(table_name text)
+// RETURNS TABLE(column_name text, data_type text)
+// LANGUAGE sql
+// AS $$
+//   SELECT column_name::text, data_type::text 
+//   FROM information_schema.columns 
+//   WHERE table_name = $1;
+// $$;
