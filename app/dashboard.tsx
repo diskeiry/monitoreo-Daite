@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   LayoutDashboard,
   Shield,
@@ -14,11 +14,14 @@ import {
   Building2,
   LogOut,
   Crown,
+  Menu,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth-provider"
 import ProtectedRoute from "@/components/protected-route"
+import { useIsMobile } from "@/hooks/use-mobile"
 import OverviewScreen from "./screens/overview-fixed"
 import SSLMonitorScreen from "./ssl-monitor"
 import AnalyticsScreen from "./screens/analytics"
@@ -55,13 +58,42 @@ const menuItems: MenuItem[] = [
 
 export default function Dashboard() {
   const { user, signOut, hasPermission } = useAuth()
+  const isMobile = useIsMobile()
   const [activeScreen, setActiveScreen] = useState("overview")
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const toggleButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const handler = (event: CustomEvent) => setActiveScreen(event.detail)
+    const handler = (event: CustomEvent) => {
+      setActiveScreen(event.detail)
+      if (isMobile) setSidebarOpen(false)
+    }
     window.addEventListener("navigate-to-screen", handler as EventListener)
     return () => window.removeEventListener("navigate-to-screen", handler as EventListener)
-  }, [])
+  }, [isMobile])
+
+  useEffect(() => {
+    setSidebarOpen(!isMobile)
+  }, [isMobile])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(target) &&
+        toggleButtonRef.current &&
+        !toggleButtonRef.current.contains(target) &&
+        isMobile &&
+        sidebarOpen
+      ) {
+        setSidebarOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isMobile, sidebarOpen])
 
   const visibleMenuItems = menuItems.filter((item) => !item.requiredPermission || hasPermission(item.requiredPermission))
   const activeItem = visibleMenuItems.find((item) => item.id === activeScreen)
@@ -79,10 +111,19 @@ export default function Dashboard() {
     }
   }
 
+  const handleNavigate = (screenId: string) => {
+    setActiveScreen(screenId)
+    if (isMobile) setSidebarOpen(false)
+  }
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen overflow-hidden">
-        <div className="w-64 bg-white shadow-lg flex flex-col">
+        {/* Sidebar */}
+        <div
+          ref={sidebarRef}
+          className={`${sidebarOpen ? "w-64" : "w-0 hidden"} bg-white shadow-lg transition-all duration-300 flex flex-col fixed top-0 left-0 h-full z-20 md:static md:z-auto`}
+        >
           <div className="p-6 border-b">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -102,12 +143,11 @@ export default function Dashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveScreen(item.id)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    isActive
+                  onClick={() => handleNavigate(item.id)}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${isActive
                       ? "bg-blue-50 text-blue-700 border border-blue-200"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   <Icon className={`h-5 w-5 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="flex-1">
@@ -147,8 +187,14 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Main Area */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          <header className="bg-white shadow-sm border-b px-6 py-4 fixed top-0 left-64 right-0 z-10">
+          {/* Header */}
+          <header
+            className={`bg-white shadow-sm border-b px-6 py-4 fixed top-0 ${isMobile ? "left-0" : sidebarOpen ? "left-64" : "left-0"
+              } right-0 z-10 transition-all`}
+          >
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{activeItem?.label || "Dashboard"}</h2>
@@ -160,12 +206,18 @@ export default function Dashboard() {
                   Sistema Activo
                 </Badge>
                 <span className="text-sm text-gray-500">{user?.username}</span>
+                {isMobile && (
+                  <Button ref={toggleButtonRef} variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                    {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                  </Button>
+                )}
               </div>
             </div>
           </header>
 
+          {/* Main content */}
           <main className="flex-1 overflow-y-auto px-6 pb-6 pt-[88px]">
-            <ActiveComponent onNavigate={setActiveScreen} />
+            <ActiveComponent onNavigate={handleNavigate} />
           </main>
         </div>
       </div>
