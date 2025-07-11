@@ -218,7 +218,6 @@ export default function LoginForm() {
               )} */}
 
               <div className="text-center text-sm text-gray-600 mt-4">
-                <p className="font-medium">Sistema de Gestión SSL</p>
                 <p className="text-xs mt-1">Acceso por nombre de usuario</p>
               </div>
             </div>
