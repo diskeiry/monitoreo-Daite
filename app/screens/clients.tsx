@@ -179,27 +179,27 @@ export default function ClientsScreen() {
   }
 
   const handleUpdateInfrastructure = async () => {
-    try {
+  try {
       if (!selectedClient) return
 
       await updateClientInfrastructure(selectedClient.id, infrastructureData)
 
-      toast({
-        title: "Éxito",
-        description: "Infraestructura actualizada correctamente",
+    toast({
+      title: "Éxito",
+      description: "Infraestructura actualizada correctamente",
       })
 
       setInfrastructureData({})
       setIsInfraDialogOpen(false)
       loadClients()
-    } catch (error) {
+  } catch (error) {
       console.error("Error updating infrastructure:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la infraestructura",
-        variant: "destructive",
+    toast({
+      title: "Error",
+      description: "No se pudo actualizar la infraestructura",
+      variant: "destructive",
       })
-    }
+  }
   }
 
   const filteredClients = clients.filter(
@@ -561,7 +561,7 @@ export default function ClientsScreen() {
                             className="h-2"
                           />
                           <p className="text-xs text-gray-500">
-                             {Number(selectedClient.infrastructure?.storage_usage_percentage || 0).toFixed(1)}% utilizado
+                            {Number(selectedClient.infrastructure?.storage_usage_percentage || 0).toFixed(1)}% utilizado
                           </p>
                         </div>
                       </CardContent>

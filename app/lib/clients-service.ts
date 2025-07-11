@@ -42,7 +42,7 @@ export interface ClientInfrastructure {
 }
 
 export interface ClientWithInfrastructure extends Client {
-  infrastructure?: ClientInfrastructure
+  infrastructure?: ClientInfrastructure | null
 }
 
 export async function getAllClients(): Promise<ClientWithInfrastructure[]> {
@@ -51,7 +51,7 @@ export async function getAllClients(): Promise<ClientWithInfrastructure[]> {
       .from("clients")
       .select(`
         *,
-        client_infrastructure(*)
+          client_infrastructure_client_id_fkey(*)
       `)
       .eq("is_active", true)
       .order("name")
@@ -61,7 +61,7 @@ export async function getAllClients(): Promise<ClientWithInfrastructure[]> {
     return (
       data?.map(client => ({
         ...client,
-        infrastructure: client.client_infrastructure?.[0] || null,
+        infrastructure: client.client_infrastructure_client_id_fkey?.[0] || null,
       })) || []
     )
   } catch (error) {
@@ -76,7 +76,7 @@ export async function getClientById(id: string): Promise<ClientWithInfrastructur
       .from("clients")
       .select(`
         *,
-        infrastructure:client_infrastructure!client_infrastructure_client_id_fkey(*)
+        client_infrastructure(*)
       `)
       .eq("id", id)
       .maybeSingle()
@@ -87,6 +87,11 @@ export async function getClientById(id: string): Promise<ClientWithInfrastructur
     }
 
     return data
+      ? {
+        ...data,
+        infrastructure: data.client_infrastructure?.[0] || null,
+      }
+      : null
   } catch (error) {
     console.error("Error in getClientById:", error)
     throw error
@@ -108,6 +113,7 @@ export async function createClient(client: Omit<Client, "id" | "created_at" | "u
     throw error
   }
 }
+
 
 export async function updateClient(id: string, updates: Partial<Client>): Promise<Client> {
   try {
@@ -149,35 +155,34 @@ export async function updateClientInfrastructure(
   infrastructure: Partial<ClientInfrastructure>,
 ): Promise<ClientInfrastructure> {
   try {
-    // 1. Verificar si la columna last_scan existe
     const { data: columns, error: columnsError } = await supabase
-      .rpc('get_columns_info', { table_name: 'client_infrastructure' });
-    
-    const columnExists = columns?.some((col: any) => col.column_name === 'last_scan');
+      .rpc("get_columns_info", { table_name: "client_infrastructure" })
 
-    // 2. Preparar datos para actualización
-    const now = new Date().toISOString();
+    const columnExists = columns?.some((col: any) => col.column_name === "last_scan")
+
+    const now = new Date().toISOString()
     const updateData: any = {
       ...infrastructure,
-      updated_at: now
-    };
+      updated_at: now,
+    }
 
-    // 3. Buscar infraestructura existente
     const { data: existingList, error: fetchError } = await supabase
       .from("client_infrastructure")
       .select("id")
       .eq("client_id", clientId)
-      .limit(1);
+      .limit(1)
 
-    if (fetchError) throw fetchError;
+    if (fetchError) throw fetchError
 
-    const existing = existingList?.[0];
+    const existing = existingList?.[0]
 
     if (existing) {
-      // Actualización de registro existente
-      if (columnExists && (infrastructure.total_computers !== undefined || 
-          infrastructure.windows_server_version !== undefined)) {
-        updateData.last_scan = now;
+      if (
+        columnExists &&
+        (infrastructure.total_computers !== undefined ||
+          infrastructure.windows_server_version !== undefined)
+      ) {
+        updateData.last_scan = now
       }
 
       const { data, error } = await supabase
@@ -185,33 +190,32 @@ export async function updateClientInfrastructure(
         .update(updateData)
         .eq("id", existing.id)
         .select()
-        .single();
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data
     } else {
-      // Creación de nuevo registro
       const insertData = {
         ...updateData,
-        client_id: clientId
-      };
+        client_id: clientId,
+      }
 
       if (columnExists) {
-        insertData.last_scan = now;
+        insertData.last_scan = now
       }
 
       const { data, error } = await supabase
         .from("client_infrastructure")
         .insert([insertData])
         .select()
-        .single();
+        .single()
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data
     }
   } catch (error) {
-    console.error("Error in updateClientInfrastructure:", error);
-    throw error;
+    console.error("Error in updateClientInfrastructure:", error)
+    throw error
   }
 }
 
@@ -235,13 +239,3 @@ export async function getInfrastructureHistory(clientId: string, limit = 10) {
     throw error
   }
 }
-
-// Función RPC para verificar columnas (debes crearla en Supabase)
-// CREATE OR REPLACE FUNCTION public.get_columns_info(table_name text)
-// RETURNS TABLE(column_name text, data_type text)
-// LANGUAGE sql
-// AS $$
-//   SELECT column_name::text, data_type::text 
-//   FROM information_schema.columns 
-//   WHERE table_name = $1;
-// $$;

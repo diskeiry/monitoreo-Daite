@@ -100,8 +100,8 @@ export default function LoginForm() {
               <Shield className="h-8 w-8 text-white" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold text-gray-900">SSL Monitor</CardTitle>
-              <CardDescription className="text-gray-600">Sistema de Gestión de Certificados SSL</CardDescription>
+              <CardTitle className="text-2xl font-bold text-gray-900">Monitor Clientes</CardTitle>
+              <CardDescription className="text-gray-600">Sistema de Gestión de Clientes Daite</CardDescription>
             </div>
           </CardHeader>
 
@@ -115,7 +115,7 @@ export default function LoginForm() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="lortega"
+                  placeholder="Usuario"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
