@@ -96,8 +96,9 @@ export default function LoginForm() {
       <div className="w-full max-w-md">
         <Card className="shadow-xl">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-              <Shield className="h-8 w-8 text-white" />
+            <div className="mx-auto w-16 h-16  rounded-full flex items-center justify-center">
+              {/* <Shield className="h-8 w-8 text-white" /> */}
+              <img src="/daite.svg" alt="Logo Daite" className="w-20 h-15" />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">Monitor Clientes</CardTitle>
@@ -219,6 +220,7 @@ export default function LoginForm() {
 
               <div className="text-center text-sm text-gray-600 mt-4">
                 <p className="text-xs mt-1">Acceso por nombre de usuario</p>
+                <p className="text-xs mt-1">Desarrollado por © Daitesrl</p>
               </div>
             </div>
           </CardContent>

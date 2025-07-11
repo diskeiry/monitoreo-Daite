@@ -126,8 +126,9 @@ export default function Dashboard() {
         >
           <div className="p-6 border-b">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                {/* <Shield className="h-5 w-5 text-white" /> */}
+                <img src="/daite.svg" alt="Logo Daite" className="w-20 h-15" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Monitor Clientes</h1>
