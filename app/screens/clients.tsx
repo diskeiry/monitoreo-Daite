@@ -67,6 +67,7 @@ export default function ClientsScreen() {
 
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [infrastructureData, setInfrastructureData] = useState<Partial<ClientInfrastructure>>({})
+  
 
   useEffect(() => {
     loadClients()
@@ -179,6 +180,7 @@ export default function ClientsScreen() {
   }
 
   const handleUpdateInfrastructure = async () => {
+    
   try {
       if (!selectedClient) return
 
@@ -188,7 +190,7 @@ export default function ClientsScreen() {
       title: "Éxito",
       description: "Infraestructura actualizada correctamente",
       })
-
+      
       setInfrastructureData({})
       setIsInfraDialogOpen(false)
       loadClients()
@@ -235,10 +237,10 @@ export default function ClientsScreen() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Gestión de Clientes</h1>
+          <h1 className="text-2xl font-bold">Gestión de Clientes</h1>
           <p className="text-gray-600">Administra clientes y su infraestructura tecnológica</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

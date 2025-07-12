@@ -124,7 +124,7 @@ export default function Dashboard() {
           ref={sidebarRef}
           className={`${sidebarOpen ? "w-64" : "w-0 hidden"} bg-white shadow-lg transition-all duration-300 flex flex-col fixed top-0 left-0 h-full z-20 md:static md:z-auto`}
         >
-          <div className="p-6 border-b">
+          <div className="p-4 border-b">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                 {/* <Shield className="h-5 w-5 text-white" /> */}
@@ -161,7 +161,7 @@ export default function Dashboard() {
             })}
           </nav>
 
-          <div className="p-4 border-t">
+          <div className="p-3 border-t">
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                 {user?.role?.name === "super_admin" ? (
@@ -195,11 +195,10 @@ export default function Dashboard() {
             className={`bg-white shadow-sm border-b px-6 py-4 fixed top-0 ${isMobile ? "left-0" : sidebarOpen ? "left-64" : "left-0"
               } right-0 z-10 transition-all`}
           >
-
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{activeItem?.label || "Dashboard"}</h2>
-                <p className="text-sm text-gray-600">{activeItem?.description}</p>
+                {/* <h2 className="text-2xl font-bold text-gray-900">{activeItem?.label || "Dashboard"}</h2> */}
+                <p className="text-sm text-blue-600 italic">{activeItem?.description}</p>
               </div>
               <div className="flex items-center space-x-4">
                 <Badge variant="outline" className="text-green-600 border-green-200">
@@ -217,7 +216,7 @@ export default function Dashboard() {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-y-auto px-6 pb-6 pt-[88px]">
+          <main className="flex-1 overflow-y-auto px-6 pb-6 pt-[45px]">
             <ActiveComponent onNavigate={handleNavigate} />
           </main>
         </div>
