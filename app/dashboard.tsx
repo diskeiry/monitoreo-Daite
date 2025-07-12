@@ -63,6 +63,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const toggleButtonRef = useRef<HTMLButtonElement>(null)
+  
 
   useEffect(() => {
     const handler = (event: CustomEvent) => {
@@ -98,6 +99,15 @@ export default function Dashboard() {
   const visibleMenuItems = menuItems.filter((item) => !item.requiredPermission || hasPermission(item.requiredPermission))
   const activeItem = visibleMenuItems.find((item) => item.id === activeScreen)
   const ActiveComponent = activeItem?.component || OverviewScreen
+
+  useEffect(() => {
+  if (activeItem?.label) {
+    document.title = `Daite - ${activeItem.label}`
+  } else {
+    document.title = "Daite - Monitor Clientes"
+  }
+}, [activeItem])
+
 
   const handleSignOut = async () => {
     try {
