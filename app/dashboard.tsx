@@ -146,8 +146,8 @@ export default function Dashboard() {
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${isActive
-                      ? "bg-blue-50 text-blue-700 border border-blue-200"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
@@ -192,17 +192,20 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Header */}
           <header
-            className={`bg-white shadow-sm border-b px-6 py-4 fixed top-0 ${isMobile ? "left-0" : sidebarOpen ? "left-64" : "left-0"
-              } right-0 z-10 transition-all`}
+            className={`bg-white shadow-sm border-b px-6 py-2 fixed top-0 ${isMobile ? "left-0" : sidebarOpen ? "left-64" : "left-0"
+              } right-0 z-10 transition-all `}
           >
             <div className="flex items-center justify-between">
-              <div>
-                {/* <h2 className="text-2xl font-bold text-gray-900">{activeItem?.label || "Dashboard"}</h2> */}
+              <div className="flex items-center space-x-2">
+                {isMobile && (
+                  <img src="/daite.svg" alt="Logo Daite" className="w-8 h-auto" />
+                )}
                 <p className="text-sm text-blue-600 italic">{activeItem?.description}</p>
               </div>
-              <div className="flex items-center space-x-4">
-                <Badge variant="outline" className="text-green-600 border-green-200">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+
+              <div className="flex items-center space-x-1">
+                <Badge variant="outline" className="text-green-600 border-green-200 text-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
                   Sistema Activo
                 </Badge>
                 <span className="text-sm text-gray-500">{user?.username}</span>
@@ -213,6 +216,7 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
+
           </header>
 
           {/* Main content */}
