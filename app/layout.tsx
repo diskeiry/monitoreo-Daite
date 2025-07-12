@@ -8,9 +8,9 @@ import { AuthProvider } from "../components/auth-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  icons: "/daite.svg",
   title: "Monitor Clientes - DAITE",
   description: "Dashboard completo para monitoreo de Clientes y certificados SSL con múltiples funcionalidades",
-  // generator: 'v0.dev'
 }
 
 export default function RootLayout({
