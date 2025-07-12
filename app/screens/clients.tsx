@@ -918,7 +918,7 @@ const getCompatibilityLabel = (level?: number) => {
                 />
               </div>
               <div>
-                <Label htmlFor="windows-workstation">Windows Workstation</Label>
+                <Label htmlFor="windows-workstation">Direcciones | Server</Label>
                 <Input
                   id="windows-workstation"
                   value={infrastructureData.windows_workstation_version || ""}
