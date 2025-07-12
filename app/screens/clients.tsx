@@ -67,7 +67,7 @@ export default function ClientsScreen() {
 
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [infrastructureData, setInfrastructureData] = useState<Partial<ClientInfrastructure>>({})
-  
+
 
   useEffect(() => {
     loadClients()
@@ -180,28 +180,28 @@ export default function ClientsScreen() {
   }
 
   const handleUpdateInfrastructure = async () => {
-    
-  try {
+
+    try {
       if (!selectedClient) return
 
       await updateClientInfrastructure(selectedClient.id, infrastructureData)
 
-    toast({
-      title: "Éxito",
-      description: "Infraestructura actualizada correctamente",
+      toast({
+        title: "Éxito",
+        description: "Infraestructura actualizada correctamente",
       })
-      
+
       setInfrastructureData({})
       setIsInfraDialogOpen(false)
       loadClients()
-  } catch (error) {
+    } catch (error) {
       console.error("Error updating infrastructure:", error)
-    toast({
-      title: "Error",
-      description: "No se pudo actualizar la infraestructura",
-      variant: "destructive",
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la infraestructura",
+        variant: "destructive",
       })
-  }
+    }
   }
 
   const filteredClients = clients.filter(
@@ -227,6 +227,23 @@ export default function ClientsScreen() {
         return "bg-gray-500"
     }
   }
+
+  const getColorByCompatibilityLevel = (level?: number) => {
+    if (level === undefined || level === null) return "bg-gray-500";
+
+    if (level <= 120) return "bg-red-500";
+    if (level < 160) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
+  const getCompatibilityLabel = (level?: number) => {
+    if (level === undefined || level === null) return "Desconocido";
+
+    if (level <= 120) return "Baja";
+    if (level < 160) return "Media";
+    return "Alta";
+  };
+
 
   if (loading) {
     return (
@@ -604,6 +621,7 @@ export default function ClientsScreen() {
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-4 md:grid-cols-3">
+                          {/* Windows Workstation */}
                           <div>
                             <Label className="text-xs font-medium text-gray-500">Windows Workstation</Label>
                             <p className="text-sm">
@@ -613,20 +631,28 @@ export default function ClientsScreen() {
                               {selectedClient.infrastructure.windows_workstation_count || 0} estaciones
                             </p>
                           </div>
+
+                          {/* Compatibilidad */}
                           <div>
                             <Label className="text-xs font-medium text-gray-500">Compatibilidad</Label>
-                            <p className="text-sm">
-                              {selectedClient.infrastructure.compatibility_level || "No especificado"}
-                            </p>
-                            <div className="flex items-center space-x-1 mt-1">
+                            <div className="flex items-center space-x-2 text-sm mt-1">
+                              <span>
+                                {selectedClient.infrastructure.compatibility_level !== undefined
+                                  ? selectedClient.infrastructure.compatibility_level
+                                  : "No especificado"}
+                              </span>
                               <div
-                                className={`w-2 h-2 rounded-full ${getStatusColor(selectedClient.infrastructure.compatibility_status)}`}
+                                className={`w-2 h-2 rounded-full ${getColorByCompatibilityLevel(
+                                  Number(selectedClient.infrastructure.compatibility_level)
+                                )}`}
                               ></div>
-                              <span className="text-xs">
-                                {selectedClient.infrastructure.compatibility_status || "Desconocido"}
+                              <span className="text-xs text-gray-500">
+                                {getCompatibilityLabel(Number(selectedClient.infrastructure.compatibility_level))}
                               </span>
                             </div>
                           </div>
+                          
+                          {/* Versión Ejecutable */}
                           <div>
                             <Label className="text-xs font-medium text-gray-500">Versión Ejecutable</Label>
                             <p className="text-sm">
