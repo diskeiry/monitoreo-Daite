@@ -229,20 +229,24 @@ export default function ClientsScreen() {
   }
 
   const getColorByCompatibilityLevel = (level?: number) => {
-    if (level === undefined || level === null) return "bg-gray-500";
+  if (level === undefined || level === null) return "bg-gray-500";
 
-    if (level <= 120) return "bg-red-500";
-    if (level < 160) return "bg-yellow-500";
-    return "bg-green-500";
-  };
+  if (level <= 120) return "bg-red-500";
+  if (level >= 130 && level <= 140) return "bg-yellow-500";
+  if (level >= 150 && level <= 160) return "bg-green-500";
 
-  const getCompatibilityLabel = (level?: number) => {
-    if (level === undefined || level === null) return "Desconocido";
+  return "bg-gray-500"; // fuera de rango definido
+};
+const getCompatibilityLabel = (level?: number) => {
+  if (level === undefined || level === null) return "Desconocido";
 
-    if (level <= 120) return "Baja";
-    if (level < 160) return "Media";
-    return "Alta";
-  };
+  if (level <= 120) return "Baja";
+  if (level >= 130 && level <= 140) return "Media";
+  if (level >= 150 && level <= 160) return "Alta";
+
+  return "Desconocido"; // fuera de rango definido
+};
+
 
 
   if (loading) {
@@ -623,13 +627,13 @@ export default function ClientsScreen() {
                         <div className="grid gap-4 md:grid-cols-3">
                           {/* Windows Workstation */}
                           <div>
-                            <Label className="text-xs font-medium text-gray-500">Windows Workstation</Label>
+                            <Label className="text-xs font-medium text-gray-500">Direcciones | Server</Label>
                             <p className="text-sm">
                               {selectedClient.infrastructure.windows_workstation_version || "No especificado"}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            {/* <p className="text-xs text-gray-500">
                               {selectedClient.infrastructure.windows_workstation_count || 0} estaciones
-                            </p>
+                            </p> */}
                           </div>
 
                           {/* Compatibilidad */}
