@@ -35,6 +35,8 @@ export interface ClientInfrastructure {
   sql_manager_databases?: number
   compatibility_level?: string
   compatibility_status?: string
+  anydesk?: string
+  vpn?: string
   executable_version?: string
   last_scan?: string
   created_at: string

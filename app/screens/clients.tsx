@@ -34,6 +34,7 @@ import {
   Trash2,
   Activity,
   AlertTriangle,
+  Plug,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -229,24 +230,32 @@ export default function ClientsScreen() {
   }
 
   const getColorByCompatibilityLevel = (level?: number) => {
-  if (level === undefined || level === null) return "bg-gray-500";
+    if (level === undefined || level === null) return "bg-gray-500";
 
-  if (level <= 120) return "bg-red-500";
-  if (level >= 130 && level <= 140) return "bg-yellow-500";
-  if (level >= 150 && level <= 160) return "bg-green-500";
+    if (level <= 120) return "bg-red-500";
+    if (level >= 130 && level <= 140) return "bg-yellow-500";
+    if (level >= 150 && level <= 160) return "bg-green-500";
 
-  return "bg-gray-500"; // fuera de rango definido
-};
-const getCompatibilityLabel = (level?: number) => {
-  if (level === undefined || level === null) return "Desconocido";
+    return "bg-gray-500"; // fuera de rango definido
+  };
+  const getCompatibilityLabel = (level?: number) => {
+    if (level === undefined || level === null) return "Desconocido";
 
-  if (level <= 120) return "Baja";
-  if (level >= 130 && level <= 140) return "Media";
-  if (level >= 150 && level <= 160) return "Alta";
+    if (level <= 120) return "Baja";
+    if (level >= 130 && level <= 140) return "Media";
+    if (level >= 150 && level <= 160) return "Alta";
 
-  return "Desconocido"; // fuera de rango definido
-};
+    return "Desconocido"; // fuera de rango definido
+  };
 
+  function getColorStyle(value: string | undefined | null) {
+    const isActive = !!value && value.trim() !== ""
+    return {
+      dot: isActive ? "bg-green-500" : "bg-red-500",
+      text: isActive ? "text-green-600" : "text-red-600",
+      id: isActive ? value : "Desconocido",
+    }
+  }
 
 
   if (loading) {
@@ -617,6 +626,46 @@ const getCompatibilityLabel = (level?: number) => {
                         </div>
                       </CardContent>
                     </Card>
+                    {/* {conexiones} */}
+                    <Card>
+                      <CardHeader className="flex flex-row items-center gap-2 pb-0">
+                        <Plug className="w-5 h-5 text-primary" />
+                        <h3 className="text-sm font-semibold text-primary">Conexiones</h3>
+                      </CardHeader>
+
+                      <CardContent className="pt-2">
+                        <div className="space-y-3">
+                          {/* Anydesk */}
+                          {(() => {
+                            const styles = getColorStyle(selectedClient.infrastructure.anydesk)
+                            return (
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-2 h-2 rounded-full ${styles.dot}`}></div>
+                                  <span className={`text-sm font-semibold`}>Anydesk</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{styles.id}</p>
+                              </div>
+                            )
+                          })()}
+
+                          {/* VPN */}
+                          {(() => {
+                            const styles = getColorStyle(selectedClient.infrastructure.vpn)
+                            return (
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-2 h-2 rounded-full ${styles.dot}`}></div>
+                                  <span className={`text-sm font-semibold`}>VPN</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{styles.id}</p>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </CardContent>
+                    </Card>
+
 
                     {/* Información adicional */}
                     <Card className="md:col-span-2">
@@ -655,7 +704,7 @@ const getCompatibilityLabel = (level?: number) => {
                               </span>
                             </div>
                           </div>
-                          
+
                           {/* Versión Ejecutable */}
                           <div>
                             <Label className="text-xs font-medium text-gray-500">Versión Ejecutable</Label>
@@ -901,6 +950,34 @@ const getCompatibilityLabel = (level?: number) => {
                     })
                   }
                   placeholder="160"
+                />
+              </div>
+              <div>
+                <Label htmlFor="anyesk">AnyDesk</Label>
+                <Input
+                  id="anydesk"
+                  value={infrastructureData.anydesk || ""}
+                  onChange={(e) =>
+                    setInfrastructureData({
+                      ...infrastructureData,
+                      anydesk: e.target.value,
+                    })
+                  }
+                  placeholder="1 844 444 421"
+                />
+              </div>
+              <div>
+                <Label htmlFor="vpn">Vpn</Label>
+                <Input
+                  id="vpn"
+                  value={infrastructureData.vpn || ""}
+                  onChange={(e) =>
+                    setInfrastructureData({
+                      ...infrastructureData,
+                      vpn: e.target.value,
+                    })
+                  }
+                  placeholder="1844444421"
                 />
               </div>
               <div>

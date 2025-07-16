@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={inter.className}>
         <AuthProvider>
-          <DynamicTitle /> {/* 👈 componente cliente */}
+          <DynamicTitle /> 
           {children}
           <Toaster />
         </AuthProvider>
