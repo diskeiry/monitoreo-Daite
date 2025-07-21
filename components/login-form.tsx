@@ -12,43 +12,43 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "./auth-provider"
 
-// const demoUsers = [
-//   {
-//     username: "lortega",
-//     password: "21652020",
-//     role: "Super Admin",
-//     description: "Administrador Principal - Acceso completo",
-//     isMain: true,
-//   },
-//   {
-//     username: "admin",
-//     password: "admin123",
-//     role: "Admin",
-//     description: "Administrador del sistema",
-//     isMain: false,
-//   },
-//   {
-//     username: "manager",
-//     password: "manager123",
-//     role: "Manager",
-//     description: "Gestión de certificados y reportes",
-//     isMain: false,
-//   },
-//   {
-//     username: "operator",
-//     password: "operator123",
-//     role: "Operator",
-//     description: "Gestión básica de certificados",
-//     isMain: false,
-//   },
-//   {
-//     username: "viewer",
-//     password: "viewer123",
-//     role: "Viewer",
-//     description: "Solo lectura",
-//     isMain: false,
-//   },
-// ]
+const demoUsers = [
+  {
+    username: "lortega",
+    password: "21652020",
+    role: "Super Admin",
+    description: "Administrador Principal - Acceso completo",
+    isMain: true,
+  },
+  {
+    username: "admin",
+    password: "admin123",
+    role: "Admin",
+    description: "Administrador del sistema",
+    isMain: false,
+  },
+  {
+    username: "manager",
+    password: "manager123",
+    role: "Manager",
+    description: "Gestión de certificados y reportes",
+    isMain: false,
+  },
+  {
+    username: "operator",
+    password: "operator123",
+    role: "Operator",
+    description: "Gestión básica de certificados",
+    isMain: false,
+  },
+  {
+    username: "viewer",
+    password: "viewer123",
+    role: "Viewer",
+    description: "Solo lectura",
+    isMain: false,
+  },
+]
 
 export default function LoginForm() {
   const [username, setUsername] = useState("")
@@ -119,7 +119,7 @@ export default function LoginForm() {
                   placeholder="Usuario"
                   value={username}
                   onChange={(e) => {
-                    const value = e.target.value.toLowerCase().replace(/\s/g, "");
+                    const value = e.target.value.toLowerCase  ().replace(/\s/g, "");
                     setUsername(value);
                   }}
                   required

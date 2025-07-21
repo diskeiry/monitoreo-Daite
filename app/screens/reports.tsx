@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { getAllCertificates } from "../lib/ssl-service"
+import { getAllCertificates} from "../lib/ssl-service"
+import { getAllClients } from "../lib/clients-service"
 
 export default function Reports() {
   const [generating, setGenerating] = useState<string | null>(null)
@@ -42,14 +43,18 @@ export default function Reports() {
   const generateGeneralReport = async () => {
     try {
       setGenerating("general")
-      const certificates = await getAllCertificates()
+      const [certificates, clients] = await Promise.all([
+        getAllCertificates(),
+        getAllClients(),
+      ])
 
-      // Simular generación de reporte
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      // Crear y descargar CSV
-      const csvContent = generateCSV(certificates)
-      downloadFile(csvContent, "reporte-general.csv", "text/csv")
+      const certCSV = generateCSV(certificates, "cert")
+      const clientCSV = generateCSV(clients, "client")
+      const fullCSV = `${certCSV}\n\n${clientCSV}`
+
+      downloadFile(fullCSV, "reporte-general.csv", "text/csv")
 
       toast({
         title: "Reporte generado",
@@ -71,7 +76,6 @@ export default function Reports() {
       setGenerating("expiration")
       const certificates = await getAllCertificates()
 
-      // Filtrar certificados próximos a vencer
       const now = new Date()
       const expiring = certificates.filter((cert) => {
         const days = Math.ceil((cert.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
@@ -80,7 +84,7 @@ export default function Reports() {
 
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      const csvContent = generateCSV(expiring)
+      const csvContent = generateCSV(expiring, "cert")
       downloadFile(csvContent, "reporte-vencimientos.csv", "text/csv")
 
       toast({
@@ -98,27 +102,62 @@ export default function Reports() {
     }
   }
 
-  const generateCSV = (data: any[]) => {
+const generateCSV = (data: any[], type: "cert" | "client") => {
+  if (type === "cert") {
     const headers = ["Dominio", "Tipo", "Estado", "Fecha de Vencimiento", "Días Restantes"]
     const rows = data.map((cert) => {
       const days = Math.ceil((cert.expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-      return [cert.domain, cert.type, cert.status, cert.expirationDate.toLocaleDateString(), days.toString()]
+      return [
+        cert.domain,
+        cert.type,
+        cert.status,
+        cert.expirationDate.toLocaleDateString(),
+        days.toString(),
+      ]
     })
-
-    return [headers, ...rows].map((row) => row.join(",")).join("\n")
+    return ["CERTIFICADOS SSL", headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
   }
 
-  const downloadFile = (content: string, filename: string, contentType: string) => {
-    const blob = new Blob([content], { type: contentType })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+  if (type === "client") {
+    const headers = [
+      "Nombre",
+      "Empresa",
+      "Correo",
+      "Teléfono",
+      "Total Computadoras",
+      "Versión de Windows Server",
+    ]
+
+    const rows = data.map((client) => [
+      client.name,
+      client.company ?? "",
+      client.contact_email ?? "",
+      client.contact_phone ?? "",
+      client.infrastructure?.total_computers?.toString() ?? "",
+      client.infrastructure?.windows_server_version ?? "",
+    ])
+
+    return ["CLIENTES", headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
   }
+
+  return ""
+}
+
+
+
+ const downloadFile = (content: string, filename: string, contentType: string) => {
+  const BOM = "\uFEFF" // Byte Order Mark para UTF-8 con BOM
+  const blob = new Blob([BOM + content.replace(/,/g, ";")], { type: contentType }) // cambia , por ;
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
 
   return (
     <div className="p-6 space-y-6">
@@ -192,7 +231,9 @@ export default function Reports() {
                   <div className="flex items-center gap-4 mt-2">
                     <span className="text-xs text-gray-500">{report.date}</span>
                     <span className="text-xs text-gray-500">{report.size}</span>
-                    <Badge variant={report.status === "Completado" ? "default" : "secondary"}>{report.status}</Badge>
+                    <Badge variant={report.status === "Completado" ? "default" : "secondary"}>
+                      {report.status}
+                    </Badge>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" disabled={report.status !== "Completado"}>
