@@ -118,7 +118,10 @@ export default function LoginForm() {
                   type="text"
                   placeholder="Usuario"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value.toLowerCase().replace(/\s/g, "");
+                    setUsername(value);
+                  }}
                   required
                   disabled={loading}
                   className="w-full"
