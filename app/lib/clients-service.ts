@@ -10,6 +10,7 @@ export interface Client {
   created_at: string
   updated_at: string
   is_active: boolean
+  
 }
 
 export interface ClientInfrastructure {
@@ -41,6 +42,7 @@ export interface ClientInfrastructure {
   last_scan?: string
   created_at: string
   updated_at: string
+  
 }
 
 export interface ClientWithInfrastructure extends Client {
@@ -123,7 +125,7 @@ export async function updateClient(id: string, updates: Partial<Client>): Promis
       .from("clients")
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", id)
-      .select()
+      .select("id, name, company, contact_email, contact_phone, address, created_at, updated_at, is_active")
       .single()
 
     if (error) {

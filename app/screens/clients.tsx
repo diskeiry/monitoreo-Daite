@@ -48,6 +48,8 @@ import {
   type ClientInfrastructure,
 } from "../lib/clients-service"
 
+
+
 export default function ClientsScreen() {
   const [clients, setClients] = useState<ClientWithInfrastructure[]>([])
   const [selectedClient, setSelectedClient] = useState<ClientWithInfrastructure | null>(null)
