@@ -31,7 +31,6 @@ import {
   MemoryStick,
   Database,
   Settings,
-  Eye,
   Edit,
   Trash2,
   Activity,
@@ -549,6 +548,10 @@ export default function ClientsScreen() {
     }
   }
 
+  const handleClientCardClick = (client: ClientWithInfrastructure) => {
+    setSelectedClient(client)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -648,17 +651,18 @@ export default function ClientsScreen() {
       {/* Lista de clientes */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="hover:shadow-lg transition-shadow">
+          <Card
+            key={client.id}
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => handleClientCardClick(client)}
+          >
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-lg">{client.name}</CardTitle>
                   {client.company && <CardDescription>{client.company}</CardDescription>}
                 </div>
-                <div className="flex space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedClient(client)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                <div className="flex space-x-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1024,15 +1028,18 @@ export default function ClientsScreen() {
                                       {getDeviceTypeIcon(device.device_type)}
                                       <div>
                                         <p className="text-sm font-medium">{device.device_name}</p>
-                                        <p className="text-xs text-gray-500">
-                                          {device.device_type} • {device.mount_point}
+                                        <div className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
+                                          <span>
+                                            {device.device_type} • {device.mount_point}
+                                          </span>
                                           {device.is_system_drive && (
                                             <Badge variant="secondary" className="ml-1 text-xs">
                                               Sistema
                                             </Badge>
                                           )}
-                                        </p>
+                                        </div>
                                       </div>
+
                                     </div>
                                     <div className="flex space-x-1">
                                       <Button variant="ghost" size="sm" onClick={() => setEditingStorage(device)}>
