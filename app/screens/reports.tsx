@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { FileText, Download, Calendar, Filter } from "lucide-react"
+import { FileText, Download, Calendar, Filter, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,9 +35,8 @@ interface CustomReportConfig {
   includeExpired: boolean
   includeExpiring: boolean
   daysThreshold: number
+  includeCertificates: boolean
   includeClients: boolean
-  clientCompanies: string
-  // Filtros de infraestructura
   filterInfrastructure: boolean
   anydesk: string
   sqlManager: string
@@ -55,6 +54,10 @@ interface CustomReportConfig {
 export default function Reports() {
   const [generating, setGenerating] = useState<string | null>(null)
   const [showCustomDialog, setShowCustomDialog] = useState(false)
+  const [availableClients, setAvailableClients] = useState<any[]>([])
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([])
+  const [clientSearchTerm, setClientSearchTerm] = useState<string>("")
+
   const [customConfig, setCustomConfig] = useState<CustomReportConfig>({
     name: "",
     description: "",
@@ -67,9 +70,8 @@ export default function Reports() {
     includeExpired: false,
     includeExpiring: true,
     daysThreshold: 30,
+    includeCertificates: true,
     includeClients: false,
-    clientCompanies: "",
-    // Filtros de infraestructura
     filterInfrastructure: false,
     anydesk: "",
     sqlManager: "",
@@ -83,6 +85,7 @@ export default function Reports() {
     maxComputers: null,
     windowsServerVersion: "",
   })
+
   const { toast } = useToast()
 
   const reports = [
@@ -112,7 +115,7 @@ export default function Reports() {
     },
   ]
 
-  const certificateTypes = ["SSL/TLS", "Code Signing", "Email", "Client Authentication"]
+  const certificateTypes = ["APP MOVIL", "PAGINAS"]
   const statusOptions = ["Válido", "Expirado", "Próximo a vencer", "Revocado", "Pendiente"]
   const sqlManagerOptions = ["SQL Server 2016", "SQL Server 2019", "SQL Server 2022", "MySQL", "PostgreSQL", "Oracle"]
   const compatibilityOptions = ["110", "120", "130", "140", "150", "160"]
@@ -150,14 +153,14 @@ export default function Reports() {
       const now = new Date()
       const expiring = certificates.filter((cert) => {
         const days = Math.ceil((cert.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        return days <= 30
+        return days <= 30 && days > 0
       })
       await new Promise((resolve) => setTimeout(resolve, 2000))
       const csvContent = generateCSV(expiring, "cert")
       downloadFile(csvContent, "reporte-vencimientos.csv", "text/csv")
       toast({
         title: "Reporte de vencimientos generado",
-        description: "El reporte se ha descargado correctamente",
+        description: `Se encontraron ${expiring.length} certificados próximos a vencer`,
       })
     } catch (error) {
       toast({
@@ -170,69 +173,103 @@ export default function Reports() {
     }
   }
 
+  const loadAvailableClients = async () => {
+    try {
+      const clients = await getAllClients()
+      setAvailableClients(clients)
+    } catch (error) {
+      console.error("Error loading clients:", error)
+    }
+  }
+
+  const handleClientSelection = (clientId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedClientIds((prev) => [...prev, clientId])
+    } else {
+      setSelectedClientIds((prev) => prev.filter((id) => id !== clientId))
+    }
+  }
+
   const generateCustomReport = async () => {
     try {
       setGenerating("custom")
-      const [certificates, clients] = await Promise.all([getAllCertificates(), getAllClients()])
+      const [certificates, allClients] = await Promise.all([getAllCertificates(), getAllClients()])
 
-      // Aplicar filtros personalizados a certificados
-      let filteredCertificates = certificates
+      let finalCertificates: any[] = []
+      let filteredClients: any[] = []
 
-      // Filtrar por fechas
-      if (customConfig.dateFrom) {
-        const fromDate = new Date(customConfig.dateFrom)
-        filteredCertificates = filteredCertificates.filter((cert) => cert.expirationDate >= fromDate)
-      }
+      // Solo procesar certificados si está habilitado
+      if (customConfig.includeCertificates) {
+        let tempCertificates = [...certificates]
 
-      if (customConfig.dateTo) {
-        const toDate = new Date(customConfig.dateTo)
-        filteredCertificates = filteredCertificates.filter((cert) => cert.expirationDate <= toDate)
-      }
+        // Filtrar por fechas de vencimiento
+        if (customConfig.dateFrom) {
+          const fromDate = new Date(customConfig.dateFrom)
+          tempCertificates = tempCertificates.filter((cert) => cert.expirationDate >= fromDate)
+        }
+        if (customConfig.dateTo) {
+          const toDate = new Date(customConfig.dateTo)
+          tempCertificates = tempCertificates.filter((cert) => cert.expirationDate <= toDate)
+        }
 
-      // Filtrar por tipos de certificado
-      if (customConfig.certificateTypes.length > 0) {
-        filteredCertificates = filteredCertificates.filter((cert) => customConfig.certificateTypes.includes(cert.type))
-      }
+        // Filtrar por tipos de certificado
+        if (customConfig.certificateTypes.length > 0) {
+          tempCertificates = tempCertificates.filter((cert) => customConfig.certificateTypes.includes(cert.type))
+        }
 
-      // Filtrar por estados
-      if (customConfig.statuses.length > 0) {
-        filteredCertificates = filteredCertificates.filter((cert) => customConfig.statuses.includes(cert.status))
-      }
+        // Filtrar por estados
+        if (customConfig.statuses.length > 0) {
+          tempCertificates = tempCertificates.filter((cert) => customConfig.statuses.includes(cert.status))
+        }
 
-      // Filtrar por dominios
-      if (customConfig.domains.trim()) {
-        const domainList = customConfig.domains.split(",").map((d) => d.trim().toLowerCase())
-        filteredCertificates = filteredCertificates.filter((cert) =>
-          domainList.some((domain) => cert.domain.toLowerCase().includes(domain)),
-        )
-      }
-
-      // Filtrar por vencimientos
-      const now = new Date()
-      if (customConfig.includeExpiring) {
-        const expiringCerts = certificates.filter((cert) => {
-          const days = Math.ceil((cert.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-          return days <= customConfig.daysThreshold && days > 0
-        })
-        filteredCertificates = [...filteredCertificates, ...expiringCerts]
-      }
-
-      if (customConfig.includeExpired) {
-        const expiredCerts = certificates.filter((cert) => cert.expirationDate < now)
-        filteredCertificates = [...filteredCertificates, ...expiredCerts]
-      }
-
-      // Filtrar clientes si está habilitado
-      let filteredClients = clients
-      if (customConfig.includeClients) {
-        if (customConfig.clientCompanies.trim()) {
-          const companyList = customConfig.clientCompanies.split(",").map((c) => c.trim().toLowerCase())
-          filteredClients = filteredClients.filter((client) =>
-            companyList.some((company) => (client.company || "").toLowerCase().includes(company)),
+        // Filtrar por dominios
+        if (customConfig.domains.trim()) {
+          const domainList = customConfig.domains.split(",").map((d) => d.trim().toLowerCase())
+          tempCertificates = tempCertificates.filter((cert) =>
+            domainList.some((domain) => cert.domain.toLowerCase().includes(domain)),
           )
         }
 
-        // Aplicar filtros de infraestructura
+        // Aplicar filtros de vencimiento
+        const now = new Date()
+        const tempFinalCertificates: any[] = []
+
+        if (customConfig.includeExpiring) {
+          const expiringCerts = tempCertificates.filter((cert) => {
+            const days = Math.ceil((cert.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            return days <= customConfig.daysThreshold && days > 0
+          })
+          tempFinalCertificates.push(...expiringCerts)
+        }
+
+        if (customConfig.includeExpired) {
+          const expiredCerts = tempCertificates.filter((cert) => cert.expirationDate < now)
+          tempFinalCertificates.push(...expiredCerts)
+        }
+
+        // Si no se seleccionó ningún filtro de vencimiento, incluir todos los filtrados
+        if (!customConfig.includeExpiring && !customConfig.includeExpired) {
+          finalCertificates = tempCertificates
+        } else {
+          finalCertificates = tempFinalCertificates
+        }
+
+        // Eliminar duplicados
+        finalCertificates = finalCertificates.filter(
+          (cert, index, self) => index === self.findIndex((c) => c.id === cert.id),
+        )
+      }
+
+      // Filtrar clientes si está habilitado
+      if (customConfig.includeClients) {
+        // Si hay clientes específicos seleccionados, usar solo esos
+        if (selectedClientIds.length > 0) {
+          filteredClients = allClients.filter((client: any) => selectedClientIds.includes(client.id))
+        } else {
+          filteredClients = [...allClients] // Si no hay selección específica, incluir todos los clientes
+        }
+
+        // Aplicar filtros de infraestructura si están habilitados
         if (customConfig.filterInfrastructure) {
           // Filtrar por AnyDesk
           if (customConfig.anydesk.trim()) {
@@ -260,7 +297,6 @@ export default function Reports() {
                 client.infrastructure.total_storage_gb >= (customConfig.storageMin || 0),
             )
           }
-
           if (customConfig.storageMax !== null) {
             filteredClients = filteredClients.filter(
               (client) =>
@@ -308,7 +344,6 @@ export default function Reports() {
                 client.infrastructure.total_computers >= (customConfig.minComputers || 0),
             )
           }
-
           if (customConfig.maxComputers !== null) {
             filteredClients = filteredClients.filter(
               (client) =>
@@ -328,47 +363,51 @@ export default function Reports() {
             )
           }
         }
-      } else {
-        filteredClients = []
       }
-
-      // Eliminar duplicados
-      filteredCertificates = filteredCertificates.filter(
-        (cert, index, self) => index === self.findIndex((c) => c.domain === cert.domain),
-      )
 
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       // Generar archivo según formato
       if (customConfig.format === "csv") {
         let csvContent = ""
-        if (filteredCertificates.length > 0) {
-          csvContent += generateCSV(filteredCertificates, "cert")
+        if (customConfig.includeCertificates && finalCertificates.length > 0) {
+          csvContent += generateCSV(finalCertificates, "cert")
         }
-        if (filteredClients.length > 0) {
+        if (customConfig.includeClients && filteredClients.length > 0) {
           if (csvContent) csvContent += "\n\n"
           csvContent += generateCSV(filteredClients, "client")
         }
+
+        if (!csvContent) {
+          csvContent = "No se encontraron datos que coincidan con los filtros aplicados"
+        }
+
         downloadFile(csvContent, `${customConfig.name || "reporte-personalizado"}.csv`, "text/csv")
       } else if (customConfig.format === "json") {
         const jsonData = {
           reportName: customConfig.name,
           description: customConfig.description,
           generatedAt: new Date().toISOString(),
-          certificates: filteredCertificates,
+          filters: customConfig,
+          certificates: customConfig.includeCertificates ? finalCertificates : [],
           clients: customConfig.includeClients ? filteredClients : [],
+          summary: {
+            totalCertificates: customConfig.includeCertificates ? finalCertificates.length : 0,
+            totalClients: customConfig.includeClients ? filteredClients.length : 0,
+          },
         }
         const jsonContent = JSON.stringify(jsonData, null, 2)
         downloadFile(jsonContent, `${customConfig.name || "reporte-personalizado"}.json`, "application/json")
       }
 
+      const certificateMessage = customConfig.includeCertificates ? `${finalCertificates.length} certificados` : ""
+      const clientMessage = customConfig.includeClients ? `${filteredClients.length} clientes` : ""
+      const messages = [certificateMessage, clientMessage].filter(Boolean)
+
       toast({
         title: "Reporte personalizado generado",
-        description: `Se encontraron ${filteredCertificates.length} certificados${
-          customConfig.includeClients ? ` y ${filteredClients.length} clientes` : ""
-        } que coinciden con los filtros`,
+        description: `Se encontraron ${messages.join(" y ")} que coinciden con los filtros`,
       })
-
       setShowCustomDialog(false)
       resetCustomConfig()
     } catch (error) {
@@ -396,9 +435,8 @@ export default function Reports() {
       includeExpired: false,
       includeExpiring: true,
       daysThreshold: 30,
+      includeCertificates: true,
       includeClients: false,
-      clientCompanies: "",
-      // Resetear filtros de infraestructura
       filterInfrastructure: false,
       anydesk: "",
       sqlManager: "",
@@ -412,6 +450,8 @@ export default function Reports() {
       maxComputers: null,
       windowsServerVersion: "",
     })
+    setSelectedClientIds([])
+    setClientSearchTerm("")
   }
 
   const handleCertificateTypeChange = (type: string, checked: boolean) => {
@@ -444,10 +484,17 @@ export default function Reports() {
 
   const generateCSV = (data: any[], type: "cert" | "client") => {
     if (type === "cert") {
-      const headers = ["Dominio", "Tipo", "Estado", "Fecha de Vencimiento", "Días Restantes"]
+      const headers = ["Dominio", "Tipo", "Estado", "Fecha de Vencimiento", "Días Restantes", "Descripción"]
       const rows = data.map((cert) => {
         const days = Math.ceil((cert.expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        return [cert.domain, cert.type, cert.status, cert.expirationDate.toLocaleDateString(), days.toString()]
+        return [
+          cert.domain || "",
+          cert.type || "",
+          cert.status || "",
+          cert.expirationDate ? cert.expirationDate.toLocaleDateString() : "",
+          days.toString(),
+          cert.description || "",
+        ]
       })
       return ["CERTIFICADOS SSL", headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
     }
@@ -458,9 +505,10 @@ export default function Reports() {
         "Empresa",
         "Correo",
         "Teléfono",
+        "Dirección",
         "Total Computadoras",
-        "Versión de Windows Server",
-        "Estado de Windows Server",
+        "Versión Windows Server",
+        "Estado Windows Server",
         "Última Actualización Windows Server",
         "Nombre Antivirus Server",
         "Versión Antivirus Server",
@@ -483,11 +531,13 @@ export default function Reports() {
         "Versión Ejecutable",
         "Último Escaneo",
       ]
+
       const rows = data.map((client) => [
         client.name || "",
         client.company || "",
         client.contact_email || "",
         client.contact_phone || "",
+        client.address || "",
         client.infrastructure?.total_computers?.toString() || "",
         client.infrastructure?.windows_server_version || "",
         client.infrastructure?.windows_server_status || "",
@@ -513,7 +563,8 @@ export default function Reports() {
         client.infrastructure?.executable_version || "",
         client.infrastructure?.last_scan || "",
       ])
-      return ["CLIENTES", headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+
+      return ["CLIENTES E INFRAESTRUCTURA", headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
     }
     return ""
   }
@@ -531,6 +582,13 @@ export default function Reports() {
     window.URL.revokeObjectURL(url)
   }
 
+  // Filtra los clientes disponibles según el término de búsqueda
+  const filteredAvailableClients = availableClients.filter(
+    (client) =>
+      client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+      (client.company && client.company.toLowerCase().includes(clientSearchTerm.toLowerCase())),
+  )
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -538,7 +596,7 @@ export default function Reports() {
           <h2 className="text-2xl font-bold text-gray-900">Reportes</h2>
           <p className="text-gray-600">Genera y descarga informes detallados</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowCustomDialog(true)}>
           <FileText className="h-4 w-4 mr-2" />
           Nuevo Reporte
         </Button>
@@ -617,7 +675,17 @@ export default function Reports() {
       </Card>
 
       {/* Modal de Reporte Personalizado */}
-      <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
+      <Dialog
+        open={showCustomDialog}
+        onOpenChange={(open) => {
+          setShowCustomDialog(open)
+          if (open) {
+            loadAvailableClients() // Cargar clientes al abrir el modal
+          } else {
+            resetCustomConfig() // Resetear configuración al cerrar el modal
+          }
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configurar Reporte Personalizado</DialogTitle>
@@ -644,7 +712,6 @@ export default function Reports() {
                       placeholder="Ej: Reporte de certificados críticos"
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="report-description">Descripción</Label>
                     <Textarea
@@ -655,7 +722,6 @@ export default function Reports() {
                       rows={3}
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="format">Formato de exportación</Label>
                     <Select
@@ -672,34 +738,74 @@ export default function Reports() {
                     </Select>
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="include-clients"
                       checked={customConfig.includeClients}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked) => {
                         setCustomConfig((prev) => ({ ...prev, includeClients: checked as boolean }))
-                      }
+                        if (checked) {
+                          loadAvailableClients() // Cargar clientes cuando se activa el checkbox
+                        } else {
+                          setSelectedClientIds([]) // Limpiar selección si se desactiva
+                          setClientSearchTerm("") // Limpiar búsqueda si se desactiva
+                        }
+                      }}
                     />
                     <Label htmlFor="include-clients" className="text-sm">
                       Incluir información de clientes
                     </Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-certificates"
+                      checked={customConfig.includeCertificates}
+                      onCheckedChange={(checked) =>
+                        setCustomConfig((prev) => ({ ...prev, includeCertificates: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="include-certificates" className="text-sm">
+                      Incluir información de certificados
+                    </Label>
+                  </div>
 
                   {customConfig.includeClients && (
-                    <div>
-                      <Label htmlFor="client-companies">Empresas de clientes (separadas por coma)</Label>
-                      <Textarea
-                        id="client-companies"
-                        value={customConfig.clientCompanies}
-                        onChange={(e) => setCustomConfig((prev) => ({ ...prev, clientCompanies: e.target.value }))}
-                        placeholder="Empresa A, Empresa B, Corp XYZ"
-                        rows={2}
-                      />
+                    <div className="space-y-4 border-t pt-4">
+                      <Label className="text-base font-medium">Seleccionar Clientes Específicos</Label>
+                      <div>
+                        <Input
+                          placeholder="Buscar cliente por nombre o empresa..."
+                          value={clientSearchTerm}
+                          onChange={(e) => setClientSearchTerm(e.target.value)}
+                          className="mb-2"
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
+                        {filteredAvailableClients.length > 0 ? (
+                          filteredAvailableClients.map((client) => (
+                            <div key={client.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`client-${client.id}`}
+                                checked={selectedClientIds.includes(client.id)}
+                                onCheckedChange={(checked) => handleClientSelection(client.id, checked as boolean)}
+                              />
+                              <Label htmlFor={`client-${client.id}`} className="text-sm font-normal flex-1">
+                                {client.name} {client.company && `(${client.company})`}
+                              </Label>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No hay clientes que coincidan con la búsqueda.
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {selectedClientIds.length} de {availableClients.length} clientes seleccionados
+                      </p>
                     </div>
                   )}
-
                   {customConfig.includeClients && (
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -720,127 +826,128 @@ export default function Reports() {
 
             {/* Pestaña Certificados */}
             <TabsContent value="certificates" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="date-from">Fecha desde</Label>
-                      <Input
-                        id="date-from"
-                        type="date"
-                        value={customConfig.dateFrom}
-                        onChange={(e) => setCustomConfig((prev) => ({ ...prev, dateFrom: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="date-to">Fecha hasta</Label>
-                      <Input
-                        id="date-to"
-                        type="date"
-                        value={customConfig.dateTo}
-                        onChange={(e) => setCustomConfig((prev) => ({ ...prev, dateTo: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="domains">Dominios (separados por coma)</Label>
-                    <Textarea
-                      id="domains"
-                      value={customConfig.domains}
-                      onChange={(e) => setCustomConfig((prev) => ({ ...prev, domains: e.target.value }))}
-                      placeholder="ejemplo.com, test.org, *.midominio.com"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="include-expiring"
-                        checked={customConfig.includeExpiring}
-                        onCheckedChange={(checked) =>
-                          setCustomConfig((prev) => ({ ...prev, includeExpiring: checked as boolean }))
-                        }
-                      />
-                      <Label htmlFor="include-expiring" className="text-sm">
-                        Incluir certificados próximos a vencer
-                      </Label>
-                    </div>
-
-                    {customConfig.includeExpiring && (
-                      <div className="ml-6">
-                        <Label htmlFor="days-threshold">Días de umbral</Label>
+              {!customConfig.includeCertificates ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+                  La sección de certificados está deshabilitada. Activa "Incluir información de certificados" en la
+                  pestaña General para usar estos filtros.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="date-from">Fecha desde</Label>
                         <Input
-                          id="days-threshold"
-                          type="number"
-                          value={customConfig.daysThreshold || ""}
-                          onChange={(e) =>
-                            setCustomConfig((prev) => ({
-                              ...prev,
-                              daysThreshold: Number.parseInt(e.target.value) || 30,
-                            }))
-                          }
-                          min="1"
-                          max="365"
-                          className="w-20"
+                          id="date-from"
+                          type="date"
+                          value={customConfig.dateFrom}
+                          onChange={(e) => setCustomConfig((prev) => ({ ...prev, dateFrom: e.target.value }))}
                         />
                       </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="include-expired"
-                        checked={customConfig.includeExpired}
-                        onCheckedChange={(checked) =>
-                          setCustomConfig((prev) => ({ ...prev, includeExpired: checked as boolean }))
-                        }
+                      <div>
+                        <Label htmlFor="date-to">Fecha hasta</Label>
+                        <Input
+                          id="date-to"
+                          type="date"
+                          value={customConfig.dateTo}
+                          onChange={(e) => setCustomConfig((prev) => ({ ...prev, dateTo: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="domains">Dominios (separados por coma)</Label>
+                      <Textarea
+                        id="domains"
+                        value={customConfig.domains}
+                        onChange={(e) => setCustomConfig((prev) => ({ ...prev, domains: e.target.value }))}
+                        placeholder="ejemplo.com, test.org, *.midominio.com"
+                        rows={3}
                       />
-                      <Label htmlFor="include-expired" className="text-sm">
-                        Incluir certificados expirados
-                      </Label>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="include-expiring"
+                          checked={customConfig.includeExpiring}
+                          onCheckedChange={(checked) =>
+                            setCustomConfig((prev) => ({ ...prev, includeExpiring: checked as boolean }))
+                          }
+                        />
+                        <Label htmlFor="include-expiring" className="text-sm">
+                          Incluir certificados próximos a vencer
+                        </Label>
+                      </div>
+                      {customConfig.includeExpiring && (
+                        <div className="ml-6">
+                          <Label htmlFor="days-threshold">Días de umbral</Label>
+                          <Input
+                            id="days-threshold"
+                            type="number"
+                            value={customConfig.daysThreshold || ""}
+                            onChange={(e) =>
+                              setCustomConfig((prev) => ({
+                                ...prev,
+                                daysThreshold: Number.parseInt(e.target.value) || 30,
+                              }))
+                            }
+                            min="1"
+                            max="365"
+                            className="w-20"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="include-expired"
+                          checked={customConfig.includeExpired}
+                          onCheckedChange={(checked) =>
+                            setCustomConfig((prev) => ({ ...prev, includeExpired: checked as boolean }))
+                          }
+                        />
+                        <Label htmlFor="include-expired" className="text-sm">
+                          Incluir certificados expirados
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-base font-medium">Tipos de Certificado</Label>
+                      <div className="space-y-2 mt-2">
+                        {certificateTypes.map((type) => (
+                          <div key={type} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`type-${type}`}
+                              checked={customConfig.certificateTypes.includes(type)}
+                              onCheckedChange={(checked) => handleCertificateTypeChange(type, checked as boolean)}
+                            />
+                            <Label htmlFor={`type-${type}`} className="text-sm font-normal">
+                              {type}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-base font-medium">Estados</Label>
+                      <div className="space-y-2 mt-2">
+                        {statusOptions.map((status) => (
+                          <div key={status} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`status-${status}`}
+                              checked={customConfig.statuses.includes(status)}
+                              onCheckedChange={(checked) => handleStatusChange(status, checked as boolean)}
+                            />
+                            <Label htmlFor={`status-${status}`} className="text-sm font-normal">
+                              {status}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-base font-medium">Tipos de Certificado</Label>
-                    <div className="space-y-2 mt-2">
-                      {certificateTypes.map((type) => (
-                        <div key={type} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`type-${type}`}
-                            checked={customConfig.certificateTypes.includes(type)}
-                            onCheckedChange={(checked) => handleCertificateTypeChange(type, checked as boolean)}
-                          />
-                          <Label htmlFor={`type-${type}`} className="text-sm font-normal">
-                            {type}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-base font-medium">Estados</Label>
-                    <div className="space-y-2 mt-2">
-                      {statusOptions.map((status) => (
-                        <div key={status} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`status-${status}`}
-                            checked={customConfig.statuses.includes(status)}
-                            onCheckedChange={(checked) => handleStatusChange(status, checked as boolean)}
-                          />
-                          <Label htmlFor={`status-${status}`} className="text-sm font-normal">
-                            {status}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </TabsContent>
 
             {/* Pestaña Infraestructura */}
@@ -867,7 +974,6 @@ export default function Reports() {
                         placeholder="ID o parte del ID de AnyDesk"
                       />
                     </div>
-
                     <div>
                       <Label htmlFor="sql-manager">SQL Manager</Label>
                       <Select
@@ -887,7 +993,6 @@ export default function Reports() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div>
                       <Label>Almacenamiento (GB)</Label>
                       <div className="grid grid-cols-2 gap-4 mt-1">
@@ -927,7 +1032,6 @@ export default function Reports() {
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <Label htmlFor="compatibility-level">Nivel de Compatibilidad</Label>
                       <Select
@@ -948,7 +1052,6 @@ export default function Reports() {
                       </Select>
                     </div>
                   </div>
-
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="executable-version">Versión Ejecutable</Label>
@@ -959,7 +1062,6 @@ export default function Reports() {
                         placeholder="Ej: 1.2.345"
                       />
                     </div>
-
                     <div>
                       <Label htmlFor="antivirus">Antivirus</Label>
                       <Select
@@ -979,7 +1081,6 @@ export default function Reports() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div>
                       <Label>Computadoras Conectadas</Label>
                       <div className="grid grid-cols-2 gap-4 mt-1">
@@ -1019,7 +1120,6 @@ export default function Reports() {
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <Label htmlFor="windows-server-version">Versión de Windows Server</Label>
                       <Select
@@ -1050,6 +1150,7 @@ export default function Reports() {
               Cancelar
             </Button>
             <Button variant="outline" onClick={resetCustomConfig}>
+              <X className="h-4 w-4 mr-2" />
               Limpiar
             </Button>
             <Button onClick={generateCustomReport} disabled={generating === "custom"}>
