@@ -567,6 +567,20 @@ export default function Clients() {
                       placeholder="4.18.2010.7"
                     />
                   </div>
+                    <div>
+                    <Label htmlFor="antivirus-version">Direccion | Server</Label>
+                    <Input
+                      id="antivirus-version"
+                      value={infrastructureData.windows_workstation_version || ""}
+                      onChange={(e) =>
+                        setInfrastructureData({
+                          ...infrastructureData,
+                          windows_workstation_version: e.target.value,
+                        })
+                      }
+                      placeholder="4.18.2010.7"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -653,6 +667,7 @@ export default function Clients() {
                       placeholder="SQL Server 2019"
                     />
                   </div>
+                  
                   <div>
                     <Label htmlFor="compatibility-level">Nivel de Compatibilidad</Label>
                     <Select
@@ -815,6 +830,12 @@ export default function Clients() {
                             ` (${selectedClient.infrastructure.antivirus_server_version})`}
                         </p>
                       </div>
+                      <div>
+                        <Label className="font-semibold">Direccion | Server</Label>
+                        <p className="text-sm text-gray-600">
+                          {selectedClient.infrastructure.windows_workstation_version || "No especificado"}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -867,14 +888,14 @@ export default function Clients() {
                           {selectedClient.infrastructure.executable_version || "No especificada"}
                         </p>
                       </div>
-                      {selectedClient.infrastructure.last_scan && (
+                      {/* {selectedClient.infrastructure.last_scan && (
                         <div>
                           <Label className="font-semibold">Último Escaneo</Label>
                           <p className="text-sm text-gray-600">
                             {new Date(selectedClient.infrastructure.last_scan).toLocaleString()}
                           </p>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 ) : (
