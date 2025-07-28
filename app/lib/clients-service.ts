@@ -7,19 +7,17 @@ export interface Client {
   contact_email?: string
   contact_phone?: string
   address?: string
+  is_active: boolean
   created_at: string
   updated_at: string
-  is_active: boolean
-  
 }
 
 export interface ClientInfrastructure {
   id: string
   client_id: string
-  total_computers: number
+  total_computers?: number
   windows_server_version?: string
   windows_server_status?: string
-  windows_server_last_update?: string
   antivirus_server_name?: string
   antivirus_server_version?: string
   antivirus_server_status?: string
@@ -29,217 +27,122 @@ export interface ClientInfrastructure {
   total_storage_gb?: number
   used_storage_gb?: number
   storage_usage_percentage?: number
-  windows_workstation_version?: string
-  windows_workstation_count?: number
   sql_manager_version?: string
   sql_manager_status?: string
   sql_manager_databases?: number
   compatibility_level?: string
   compatibility_status?: string
+  executable_version?: string
+  windows_workstation_version?: string
   anydesk?: string
   vpn?: string
-  executable_version?: string
   last_scan?: string
   created_at: string
   updated_at: string
-  
 }
 
 export interface ClientWithInfrastructure extends Client {
-  infrastructure?: ClientInfrastructure | null
+  infrastructure?: ClientInfrastructure
 }
 
 export async function getAllClients(): Promise<ClientWithInfrastructure[]> {
-  try {
-    const { data, error } = await supabase
-      .from("clients")
-      .select(`
-        *,
-          client_infrastructure_client_id_fkey(*)
-      `)
-      .eq("is_active", true)
-      .order("name")
+  const { data: clients, error: clientsError } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("is_active", true)
+    .order("name")
 
-    if (error) throw error
-
-    return (
-      data?.map(client => ({
-        ...client,
-        infrastructure: client.client_infrastructure_client_id_fkey?.[0] || null,
-      })) || []
-    )
-  } catch (error) {
-    console.error("Error fetching clients:", error)
-    throw error
+  if (clientsError) {
+    throw new Error(`Error fetching clients: ${clientsError.message}`)
   }
+
+  const { data: infrastructure, error: infraError } = await supabase.from("client_infrastructure").select("*")
+
+  if (infraError) {
+    throw new Error(`Error fetching infrastructure: ${infraError.message}`)
+  }
+
+  // Transform data to include infrastructure as a single object
+  const clientsWithInfrastructure: ClientWithInfrastructure[] = clients.map((client: Client) => {
+    const clientInfra = infrastructure?.find((infra: ClientInfrastructure) => infra.client_id === client.id)
+    return {
+      ...client,
+      infrastructure: clientInfra || undefined,
+    }
+  })
+
+  return clientsWithInfrastructure
 }
 
-export async function getClientById(id: string): Promise<ClientWithInfrastructure | null> {
-  try {
-    const { data, error } = await supabase
-      .from("clients")
-      .select(`
-        *,
-        client_infrastructure(*)
-      `)
-      .eq("id", id)
-      .maybeSingle()
+export async function createClient(clientData: Omit<Client, "id" | "created_at" | "updated_at">): Promise<Client> {
+  const { data, error } = await supabase.from("clients").insert([clientData]).select().single()
 
-    if (error) {
-      console.error("Error fetching client:", error)
-      throw error
-    }
-
-    return data
-      ? {
-        ...data,
-        infrastructure: data.client_infrastructure?.[0] || null,
-      }
-      : null
-  } catch (error) {
-    console.error("Error in getClientById:", error)
-    throw error
+  if (error) {
+    throw new Error(`Error creating client: ${error.message}`)
   }
+
+  return data
 }
 
-export async function createClient(client: Omit<Client, "id" | "created_at" | "updated_at">): Promise<Client> {
-  try {
-    const { data, error } = await supabase.from("clients").insert([client]).select().single()
+export async function updateClient(id: string, clientData: Partial<Client>): Promise<Client> {
+  const { data, error } = await supabase.from("clients").update(clientData).eq("id", id).select().single()
 
-    if (error) {
-      console.error("Error creating client:", error)
-      throw error
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error in createClient:", error)
-    throw error
+  if (error) {
+    throw new Error(`Error updating client: ${error.message}`)
   }
-}
 
-
-export async function updateClient(id: string, updates: Partial<Client>): Promise<Client> {
-  try {
-    const { data, error } = await supabase
-      .from("clients")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select("id, name, company, contact_email, contact_phone, address, created_at, updated_at, is_active")
-      .single()
-
-    if (error) {
-      console.error("Error updating client:", error)
-      throw error
-    }
-
-    return data
-  } catch (error) {
-    console.error("Error in updateClient:", error)
-    throw error
-  }
+  return data
 }
 
 export async function deleteClient(id: string): Promise<void> {
-  try {
-    const { error } = await supabase.from("clients").update({ is_active: false }).eq("id", id)
+  const { error } = await supabase.from("clients").update({ is_active: false }).eq("id", id)
 
-    if (error) {
-      console.error("Error deleting client:", error)
-      throw error
-    }
-  } catch (error) {
-    console.error("Error in deleteClient:", error)
-    throw error
+  if (error) {
+    throw new Error(`Error deleting client: ${error.message}`)
   }
 }
 
 export async function updateClientInfrastructure(
   clientId: string,
-  infrastructure: Partial<ClientInfrastructure>,
+  infrastructureData: Partial<ClientInfrastructure>,
 ): Promise<ClientInfrastructure> {
-  try {
-    const { data: columns, error: columnsError } = await supabase
-      .rpc("get_columns_info", { table_name: "client_infrastructure" })
+  // First check if infrastructure exists
+  const { data: existing, error: checkError } = await supabase
+    .from("client_infrastructure")
+    .select("id")
+    .eq("client_id", clientId)
+    .single()
 
-    const columnExists = columns?.some((col: any) => col.column_name === "last_scan")
-
-    const now = new Date().toISOString()
-    const updateData: any = {
-      ...infrastructure,
-      updated_at: now,
-    }
-
-    const { data: existingList, error: fetchError } = await supabase
-      .from("client_infrastructure")
-      .select("id")
-      .eq("client_id", clientId)
-      .limit(1)
-
-    if (fetchError) throw fetchError
-
-    const existing = existingList?.[0]
-
-    if (existing) {
-      if (
-        columnExists &&
-        (infrastructure.total_computers !== undefined ||
-          infrastructure.windows_server_version !== undefined)
-      ) {
-        updateData.last_scan = now
-      }
-
-      const { data, error } = await supabase
-        .from("client_infrastructure")
-        .update(updateData)
-        .eq("id", existing.id)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } else {
-      const insertData = {
-        ...updateData,
-        client_id: clientId,
-      }
-
-      if (columnExists) {
-        insertData.last_scan = now
-      }
-
-      const { data, error } = await supabase
-        .from("client_infrastructure")
-        .insert([insertData])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    }
-  } catch (error) {
-    console.error("Error in updateClientInfrastructure:", error)
-    throw error
+  if (checkError && checkError.code !== "PGRST116") {
+    throw new Error(`Error checking infrastructure: ${checkError.message}`)
   }
-}
 
-export async function getInfrastructureHistory(clientId: string, limit = 10) {
-  try {
+  if (existing) {
+    // Update existing infrastructure
     const { data, error } = await supabase
-      .from("infrastructure_history")
-      .select("*")
+      .from("client_infrastructure")
+      .update(infrastructureData)
       .eq("client_id", clientId)
-      .order("scan_date", { ascending: false })
-      .limit(limit)
+      .select()
+      .single()
 
     if (error) {
-      console.error("Error fetching infrastructure history:", error)
-      throw error
+      throw new Error(`Error updating infrastructure: ${error.message}`)
     }
 
-    return data || []
-  } catch (error) {
-    console.error("Error in getInfrastructureHistory:", error)
-    throw error
+    return data
+  } else {
+    // Create new infrastructure
+    const { data, error } = await supabase
+      .from("client_infrastructure")
+      .insert([{ ...infrastructureData, client_id: clientId }])
+      .select()
+      .single()
+
+    if (error) {
+      throw new Error(`Error creating infrastructure: ${error.message}`)
+    }
+
+    return data
   }
 }

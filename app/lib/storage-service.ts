@@ -6,37 +6,16 @@ export interface StorageDevice {
   device_name: string
   device_type: string
   total_capacity_gb: number
+  mount_point?: string
   file_system?: string
   health_status: string
-  mount_point?: string
+  temperature_celsius?: number
+  is_system_drive: boolean
+  is_active: boolean
+  last_scan?: string
   created_at: string
   updated_at: string
 }
-
-export const DEVICE_TYPES = {
-  HDD: "HDD",
-  SSD: "SSD",
-  NVME: "NVMe",
-  HYBRID: "Hybrid",
-  NETWORK: "Network",
-} as const
-
-export const HEALTH_STATUS = {
-  EXCELLENT: "Excelente",
-  GOOD: "Bueno",
-  WARNING: "Advertencia",
-  CRITICAL: "Crítico",
-  FAILED: "Fallido",
-} as const
-
-export const FILE_SYSTEMS = {
-  NTFS: "NTFS",
-  FAT32: "FAT32",
-  EXFAT: "exFAT",
-  EXT4: "ext4",
-  XFS: "XFS",
-  APFS: "APFS",
-} as const
 
 export async function getStorageDevicesByClient(clientId: string): Promise<StorageDevice[]> {
   try {
@@ -44,11 +23,13 @@ export async function getStorageDevicesByClient(clientId: string): Promise<Stora
       .from("storage_devices")
       .select("*")
       .eq("client_id", clientId)
+      .eq("is_active", true)
+      .order("is_system_drive", { ascending: false })
       .order("device_name")
 
     if (error) {
       console.error("Error fetching storage devices:", error)
-      throw new Error(`Error fetching storage devices: ${error.message}`)
+      throw error
     }
 
     return data || []
@@ -67,8 +48,7 @@ export async function createStorageDevice(
       .insert([
         {
           ...device,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          last_scan: new Date().toISOString(),
         },
       ])
       .select()
@@ -76,7 +56,7 @@ export async function createStorageDevice(
 
     if (error) {
       console.error("Error creating storage device:", error)
-      throw new Error(`Error creating storage device: ${error.message}`)
+      throw error
     }
 
     return data
@@ -93,6 +73,7 @@ export async function updateStorageDevice(id: string, updates: Partial<StorageDe
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
+        last_scan: new Date().toISOString(),
       })
       .eq("id", id)
       .select()
@@ -100,7 +81,7 @@ export async function updateStorageDevice(id: string, updates: Partial<StorageDe
 
     if (error) {
       console.error("Error updating storage device:", error)
-      throw new Error(`Error updating storage device: ${error.message}`)
+      throw error
     }
 
     return data
@@ -112,11 +93,11 @@ export async function updateStorageDevice(id: string, updates: Partial<StorageDe
 
 export async function deleteStorageDevice(id: string): Promise<void> {
   try {
-    const { error } = await supabase.from("storage_devices").delete().eq("id", id)
+    const { error } = await supabase.from("storage_devices").update({ is_active: false }).eq("id", id)
 
     if (error) {
       console.error("Error deleting storage device:", error)
-      throw new Error(`Error deleting storage device: ${error.message}`)
+      throw error
     }
   } catch (error) {
     console.error("Error in deleteStorageDevice:", error)
@@ -124,48 +105,31 @@ export async function deleteStorageDevice(id: string): Promise<void> {
   }
 }
 
-export async function getStorageStatsByClient(clientId: string) {
-  try {
-    const devices = await getStorageDevicesByClient(clientId)
+export const DEVICE_TYPES = [
+  { value: "SSD", label: "SSD (Solid State Drive)" },
+  { value: "HDD", label: "HDD (Hard Disk Drive)" },
+  { value: "NVMe", label: "NVMe (Non-Volatile Memory)" },
+  { value: "Network", label: "Almacenamiento en Red" },
+  { value: "USB", label: "Dispositivo USB" },
+  { value: "CD/DVD", label: "CD/DVD" },
+  { value: "Other", label: "Otro" },
+]
 
-    const stats = {
-      totalDevices: devices.length,
-      totalCapacity: devices.reduce((sum, device) => sum + device.total_capacity_gb, 0),
-      deviceTypes: devices.reduce(
-        (acc, device) => {
-          acc[device.device_type] = (acc[device.device_type] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>,
-      ),
-      healthStatus: devices.reduce(
-        (acc, device) => {
-          acc[device.health_status] = (acc[device.health_status] || 0) + 1
-          return acc
-        },
-        {} as Record<string, number>,
-      ),
-    }
+export const HEALTH_STATUS = [
+  { value: "healthy", label: "Saludable", color: "bg-green-500" },
+  { value: "warning", label: "Advertencia", color: "bg-yellow-500" },
+  { value: "critical", label: "Crítico", color: "bg-red-500" },
+  { value: "unknown", label: "Desconocido", color: "bg-gray-500" },
+]
 
-    return stats
-  } catch (error) {
-    console.error("Error in getStorageStatsByClient:", error)
-    throw error
-  }
-}
-
-export async function getAllStorageDevices(): Promise<StorageDevice[]> {
-  try {
-    const { data, error } = await supabase.from("storage_devices").select("*").order("device_name")
-
-    if (error) {
-      console.error("Error fetching all storage devices:", error)
-      throw new Error(`Error fetching all storage devices: ${error.message}`)
-    }
-
-    return data || []
-  } catch (error) {
-    console.error("Error in getAllStorageDevices:", error)
-    throw error
-  }
-}
+export const FILE_SYSTEMS = [
+  { value: "NTFS", label: "NTFS" },
+  { value: "FAT32", label: "FAT32" },
+  { value: "exFAT", label: "exFAT" },
+  { value: "ext4", label: "ext4" },
+  { value: "ext3", label: "ext3" },
+  { value: "APFS", label: "APFS" },
+  { value: "HFS+", label: "HFS+" },
+  { value: "SMB", label: "SMB/CIFS" },
+  { value: "NFS", label: "NFS" },
+]
