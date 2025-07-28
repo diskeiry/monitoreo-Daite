@@ -677,6 +677,20 @@ export default function Clients() {
                       </SelectContent>
                     </Select>
                   </div>
+                   <div>
+                    <Label htmlFor="vpn">VPN ID</Label>
+                    <Input
+                      id="vpn"
+                      value={infrastructureData.vpn || ""}
+                      onChange={(e) =>
+                        setInfrastructureData({
+                          ...infrastructureData,
+                          vpn: e.target.value,
+                        })
+                      }
+                      placeholder="123456789"
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="anydesk">AnyDesk ID</Label>
                     <Input
@@ -833,6 +847,12 @@ export default function Clients() {
                         <Label className="font-semibold">Nivel de Compatibilidad</Label>
                         <p className="text-sm text-gray-600">
                           {selectedClient.infrastructure.compatibility_level || "No especificado"}
+                        </p>
+                      </div>
+                       <div>
+                        <Label className="font-semibold">VPN ID</Label>
+                        <p className="text-sm text-gray-600">
+                          {selectedClient.infrastructure.vpn || "No especificado"}
                         </p>
                       </div>
                       <div>
