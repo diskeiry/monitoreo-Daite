@@ -63,7 +63,13 @@ import {
   FILE_SYSTEMS,
 } from "../lib/storage-service"
 
-export default function ClientsScreen() {
+interface ClientsProps {
+  initialClientId?: string | null
+  initialTab?: string | null
+  onNavigationConsumed?: () => void
+}
+
+export default function ClientsScreen({ initialClientId, initialTab, onNavigationConsumed }: ClientsProps) {
   const [clients, setClients] = useState<ClientWithInfrastructure[]>([])
   const [selectedClient, setSelectedClient] = useState<ClientWithInfrastructure | null>(null)
   const [loading, setLoading] = useState(true)
