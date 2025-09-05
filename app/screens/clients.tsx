@@ -878,14 +878,14 @@ export default function Clients({ initialClientId, initialTab, onNavigationConsu
                           {selectedClient.infrastructure.executable_version || "No especificada"}
                         </p>
                       </div>
-                      {selectedClient.infrastructure.last_scan && (
+                      {/* {selectedClient.infrastructure.last_scan && (
                         <div>
                           <Label className="font-semibold">Último Escaneo</Label>
                           <p className="text-sm text-gray-600">
                             {new Date(selectedClient.infrastructure.last_scan).toLocaleString()}
                           </p>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 ) : (

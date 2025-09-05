@@ -144,7 +144,7 @@ export default function Overview() {
       return getLatestDateForSorting(b) - getLatestDateForSorting(a)
     })
 
-    setRecentExecutableUpdates(recentUpdates.slice(0, 5)) // Show top 5 recent updates
+    setRecentExecutableUpdates(recentUpdates) // Show all recent updates
     setOutdatedExecutables(outdated)
   }
 
@@ -161,7 +161,7 @@ export default function Overview() {
     console.log(`Navegando a la infraestructura del cliente: ${clientId}`)
     window.dispatchEvent(
       new CustomEvent("navigate-to-screen", {
-        detail: { screen: "clients", clientId: clientId, tab: "infraestructura" }, // Pass clientId and tab to clients screen
+        detail: { screen: "clients", clientId: clientId, tab: "infrastructure" }, // Pass clientId and tab to clients screen
       }),
     )
   }
@@ -280,7 +280,9 @@ export default function Overview() {
         <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Últimas Actualizaciones de Ejecutables */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">Últimas Actualizaciones Recientes (2025)</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              Últimas Actualizaciones Recientes (2025) <br></br> Actualizados: {recentExecutableUpdates.length}
+            </h3>
             {recentExecutableUpdates.length > 0 ? (
               <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
                 {recentExecutableUpdates.map((client) => (
@@ -314,7 +316,9 @@ export default function Overview() {
 
           {/* Ejecutables Pendientes de Actualización */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">Ejecutables Pendientes de Actualización (2024 o anterior)</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              Ejecutables Pendientes de Actualización (2024 o anterior)  Pendientes: {outdatedExecutables.length}
+            </h3>
             {outdatedExecutables.length > 0 ? (
               <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2">
                 {outdatedExecutables.map((client) => (
@@ -322,7 +326,6 @@ export default function Overview() {
                     key={client.id}
                     className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
                     onClick={() => handleNavigateToClientInfrastructure(client.id)}
-                    
                   >
                     <div>
                       <p className="font-medium text-red-800">{client.name}</p>
